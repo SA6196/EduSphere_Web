@@ -1,0 +1,43 @@
+EduSphere frontend UX + error-handling state
+Date: 2026-09-27
+
+Backend contract target:
+- Frontend-readiness regression: 16 PASS / 0 FAIL
+- Positive CLASS_SESSION create/readback: PASS
+- Oracle schema: 31 normalized base tables, normalization preserved through 5NF
+- Roles: STUDENT / INSTRUCTOR / ADMIN
+
+Frontend upgrades in this revision:
+- Enrollment-aware catalog with duplicate-enrollment prevention in UI
+- Named selectors replacing manual database-ID entry wherever current APIs allow it
+- OfferingWorkspaceView split into dedicated workspace-tab components
+- Student Performance rendered with tables, GPA verification, bar charts and exam calendar
+- Admin Reports rendered with named offering/student selectors, tables, charts and calendar
+- Busy/disabled states and confirmation dialogs for important mutations
+- Quiz local drafts, progress, unanswered navigation, countdown and edit-before-final-submit workflow
+- Searchable/sortable/paginated DataTable
+- URL-backed file drop helper with explicit current API limitation
+- Session and exam calendars
+- No new npm runtime dependency added
+
+Additional hardening in this revision:
+- Central API error sanitizer removes Oracle/ODBC/Django-debug details from rendered messages
+- Known Oracle business-rule codes receive human-readable messages
+- Quiz startup distinguishes “attempt required” from other HTTP 400/business-rule failures
+- Friendly quiz error state with retry only for retryable conditions
+- Request timeout and offline/network handling
+- Single-flight JWT refresh
+- Duplicate error-toast suppression
+- Offline indicator in the application shell
+
+See FRONTEND_LIMITATIONS_V3.md for the current remaining limitations.
+
+2026-09-27 Admin Management delta
+---------------------------------
+Admin portal now includes Academic Setup for:
+- Student account creation
+- Instructor account creation
+- Class/offering creation
+- Instructor assignment/reassignment
+- Grading scheme and assessment weightage maintenance
+The normalized database schema remains unchanged; these screens operate on the existing LMS_USER/STUDENT/INSTRUCTOR/COURSE_OFFERING/OFFERING_INSTRUCTOR/GRADING_SCHEME/ASSESSMENT_COMPONENT relations through Django APIs.

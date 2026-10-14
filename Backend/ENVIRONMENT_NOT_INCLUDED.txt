@@ -1,0 +1,3 @@
+The real .env file is intentionally excluded from this archive because it may contain credentials/secrets.
+Copy .env.example to .env and fill in the local Oracle/JWT settings before running Django.
+The local .venv is also excluded; recreate it with `python -m venv .venv` and `pip install -r requirements.txt`.

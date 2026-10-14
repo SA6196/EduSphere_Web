@@ -1,0 +1,12 @@
+"""EduSphere admin-managed frontend-ready backend version information."""
+
+APP_NAME = "EduSphere LMS Backend"
+VERSION = "1.3.0-admin-management"
+COMMIT = "admin-user-offering-grading-management"
+RELEASE_DATE = "2026-09-27"
+DATABASE_RELEASE = "V6.1-current"
+DATABASE_SCHEMA = "EDUSPHERE_OWNER"
+DATABASE_PDB = "XEPDB1"
+RUNTIME_USER = "EDUSPHERE_APP"
+BASELINE_REGRESSION_STATUS = "frontend-ready baseline PASS"
+ADMIN_MANAGEMENT_STATUS = "CODE COMPLETE; LIVE PRIVILEGE/API REGRESSION PENDING"

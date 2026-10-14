@@ -1,0 +1,28 @@
+EduSphere Django Backend - Admin Management Working State
+======================================================
+Date: 2026-09-27
+Version: 1.3.0-admin-management
+Database: XEPDB1 / EDUSPHERE_OWNER; runtime EDUSPHERE_APP
+Normalized schema: unchanged 31-table design; no new base tables.
+
+Existing verified frontend-ready capabilities remain intact.
+
+This delta adds Admin-only APIs for:
+- creating STUDENT LMS_USER + STUDENT subtype accounts atomically
+- creating INSTRUCTOR LMS_USER + INSTRUCTOR subtype accounts atomically
+- browsing departments/programs/account directories
+- creating COURSE_OFFERING class sections from existing COURSE + SEMESTER
+- assigning/reassigning OFFERING_INSTRUCTOR rows
+- creating/updating GRADING_SCHEME and ASSESSMENT_COMPONENT weights
+- preventing grading-scheme modification after published final grades exist
+- atomic PR_LOG_ACTIVITY auditing for the new multi-table business actions
+
+Database schema normalization is unchanged. New runtime DML privileges are
+limited to the existing normalized relations used by these administrator flows.
+
+Required live DB steps after applying source patch:
+1. sql/20_grant_admin_management_access.sql
+2. sql/21_verify_admin_management_access.sql
+3. python manage.py check
+4. python scripts/admin_management_code_audit.py
+5. run the Admin Management UI/API regression.

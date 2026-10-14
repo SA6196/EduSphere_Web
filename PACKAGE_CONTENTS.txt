@@ -1,0 +1,13 @@
+EDUSPHERE TESTER HANDOFF - directory overview
+
+.gitignore
+00_START_HERE.md
+Backend
+Database
+Documentation
+FILE_SHA256SUMS.txt
+Frontend
+Testing
+
+Schema table count: 37
+Sample login count: 5 (generated passwords, no default)
