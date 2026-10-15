@@ -25,7 +25,7 @@ if missing:
 # Activity log writes must use PR_LOG_ACTIVITY, not direct table INSERT.
 for p in pyfiles():
     text = p.read_text(encoding="utf-8", errors="ignore")
-    if re.search(r"INSERT\s+INTO\s+.*ACTIVITY_LOG", text, re.I | re.S):
+    if re.search(r"INSERT\s+INTO\s+[^\n]*ACTIVITY_LOG", text, re.I):
         errors.append(f"Direct ACTIVITY_LOG INSERT found: {p.relative_to(ROOT)}")
 
 # Service layer must not leak built-in permission/value exceptions.

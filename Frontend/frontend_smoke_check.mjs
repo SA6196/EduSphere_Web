@@ -1,7 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const root = process.cwd()
+const root = path.dirname(fileURLToPath(import.meta.url))
 const required = [
   'package.json','index.html','src/main.js','src/App.vue','src/router/index.js',
   'src/services/http.js','src/services/api.js','src/stores/auth.js',

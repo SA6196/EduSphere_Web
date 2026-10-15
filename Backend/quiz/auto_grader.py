@@ -12,6 +12,7 @@ import re
 from database.query import fetch_all, fetch_one, execute, execute_procedure, execute_many
 from database.connection import atomic_oracle
 from database.schema import object_name
+from core.exceptions import NotFoundError, BusinessRuleError
 
 
 def _d(value):
@@ -447,7 +448,7 @@ def lock_quiz_enrollment(enrollment_id):
         (int(enrollment_id),),
     )
     if row is None:
-        raise ValueError("Quiz enrollment not found.")
+        raise NotFoundError("Quiz enrollment not found.")
 
 
 def synchronize_quiz_component_mark(component_id, enrollment_id, quiz_id, student_id, recorder_user_id):
@@ -479,7 +480,7 @@ def synchronize_quiz_component_mark(component_id, enrollment_id, quiz_id, studen
     # Attribute reviewed grades to their actual reviewer when available.
     marker = best.get("reviewed_by_user_id") or recorder_user_id
     if marker is None:
-        raise ValueError("An authorized instructor is required to record quiz marks.")
+        raise BusinessRuleError("An authorized instructor is required to record quiz marks.")
     execute_procedure(
         object_name("PR_RECORD_MARK"),
         (int(component_id), int(enrollment_id), float(best["final_marks"]), int(marker), None),
@@ -491,12 +492,12 @@ def synchronize_quiz_component_mark(component_id, enrollment_id, quiz_id, studen
 def auto_grade_attempt(attempt_id, recorder_user_id=None):
     attempt = load_attempt_for_grading(attempt_id)
     if not attempt:
-        raise ValueError("Quiz attempt not found.")
+        raise NotFoundError("Quiz attempt not found.")
 
     # Lock before reading/writing grading state. Concurrent attempts and
     # reviews for this enrollment cannot overwrite a higher component mark.
     if attempt.get("enrollment_id") is None:
-        raise ValueError("No active quiz enrollment found for the student.")
+        raise BusinessRuleError("No active quiz enrollment found for the student.")
     lock_quiz_enrollment(int(attempt["enrollment_id"]))
 
     attempt["recorder_user_id"] = load_recorder_user_id(
@@ -505,10 +506,10 @@ def auto_grade_attempt(attempt_id, recorder_user_id=None):
         recorder_user_id,
     )
     if attempt["recorder_user_id"] is None:
-        raise ValueError("No active instructor is assigned to this quiz offering for mark recording.")
+        raise BusinessRuleError("No active instructor is assigned to this quiz offering for mark recording.")
 
     if attempt["submitted_at"] is None:
-        raise ValueError("Quiz must be submitted before grading.")
+        raise BusinessRuleError("Quiz must be submitted before grading.")
 
     questions = load_questions(attempt_id)
     responses = load_responses(attempt_id)
@@ -540,7 +541,7 @@ def auto_grade_attempt(attempt_id, recorder_user_id=None):
         details.append((q, awarded, correct, note))
 
     if max_total <= 0:
-        raise ValueError("Cannot grade a quiz with no configured questions.")
+        raise BusinessRuleError("Cannot grade a quiz with no configured questions.")
 
     existing = fetch_one(
         f"""

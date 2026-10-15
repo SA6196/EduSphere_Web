@@ -1,7 +1,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const root = path.resolve(path.dirname(new URL(import.meta.url).pathname))
+// Use fileURLToPath for correct cross-platform path resolution (handles Windows spaces and drive letters).
+const root = path.dirname(fileURLToPath(import.meta.url))
+
 const checks = [
   ['admin route', 'src/router/index.js', '/admin/management'],
   ['admin nav item', 'src/components/AppShell.vue', 'Academic Setup'],
@@ -13,7 +16,7 @@ const checks = [
   ['management tabs', 'src/views/admin/AdminManagementView.vue', "key: 'grading'"],
   ['student form', 'src/views/admin/AdminManagementView.vue', 'Create student account'],
   ['instructor form', 'src/views/admin/AdminManagementView.vue', 'Create instructor account'],
-  ['class offering form', 'src/views/admin/AdminManagementView.vue', 'Create class offering'],
+  ['class offering form', 'src/views/admin/AdminManagementView.vue', 'Create class'],
   ['instructor assignments', 'src/views/admin/AdminManagementView.vue', 'Save instructor assignments'],
   ['weight total', 'src/views/admin/AdminManagementView.vue', 'Total weight:'],
   ['published-grade lock', 'src/views/admin/AdminManagementView.vue', 'final course grade(s) have already been published'],

@@ -5,5 +5,5 @@
 **/*.pyc
 **/node_modules/
 **/dist/
-
+Database/Sample_Data/02_accounts.generated.sql
 *.log

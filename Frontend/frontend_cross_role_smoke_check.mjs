@@ -1,4 +1,8 @@
 import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const root = path.dirname(fileURLToPath(import.meta.url))
 
 const checks = [
   ['src/components/DataTable.vue', '/_date$/i', 'date-only detection is exact'],
@@ -19,7 +23,7 @@ const checks = [
 
 let failures = 0
 for (const [file, needle, label] of checks) {
-  const text = fs.readFileSync(file, 'utf8')
+  const text = fs.readFileSync(path.join(root, file), 'utf8')
   const ok = text.includes(needle)
   console.log(`${ok ? '[PASS]' : '[FAIL]'} ${label}`)
   if (!ok) failures++
