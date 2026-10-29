@@ -6,6 +6,9 @@ const DEFAULT_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || 20000)
 const ACCESS_KEY = 'edusphere_access'
 const REFRESH_KEY = 'edusphere_refresh'
 let refreshPromise = null
+// Only concurrent, identical GETs are combined. Never cache across requests,
+// and never coalesce mutations or abortable reads.
+const pendingGets = new Map()
 
 export function getAccessToken() {
   return sessionStorage.getItem(ACCESS_KEY)
@@ -23,6 +26,7 @@ export function setTokens({ access, refresh }) {
 export function clearTokens() {
   sessionStorage.removeItem(ACCESS_KEY)
   sessionStorage.removeItem(REFRESH_KEY)
+  pendingGets.clear()
 }
 
 async function parseResponse(response) {
@@ -85,7 +89,27 @@ function combineAbortSignals(controller, externalSignal) {
   externalSignal.addEventListener('abort', () => controller.abort(externalSignal.reason), { once: true })
 }
 
-export async function request(path, options = {}, retry = true) {
+export function request(path, options = {}, retry = true) {
+  const method = String(options.method || 'GET').toUpperCase()
+  const canCombine = retry && method === 'GET' && !options.signal &&
+    !options.body && !options.headers && !options.timeoutMs
+  if (!canCombine) return performRequest(path, options, retry)
+
+  // Include the access token to avoid sharing responses across logins.
+  const url = path.startsWith('http') ? path : `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`
+  const key = `${getAccessToken() || ''}\u0000${url}`
+  if (pendingGets.has(key)) return pendingGets.get(key)
+  const job = performRequest(path, options, retry)
+  pendingGets.set(key, job)
+  // Cleanup for both resolve and reject without creating an unhandled promise.
+  void job.then(
+    () => { if (pendingGets.get(key) === job) pendingGets.delete(key) },
+    () => { if (pendingGets.get(key) === job) pendingGets.delete(key) },
+  )
+  return job
+}
+
+async function performRequest(path, options = {}, retry = true) {
   const url = path.startsWith('http') ? path : `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`
   const headers = new Headers(options.headers || {})
   const access = getAccessToken()

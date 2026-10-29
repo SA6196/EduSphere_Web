@@ -34,8 +34,17 @@ const semesterSessions = computed(() =>
     selectedSemesterId.value && String(s.semester_id) === selectedSemesterId.value
   )
 )
+const sessionsByOffering = computed(() => {
+  const grouped = new Map()
+  for (const session of semesterSessions.value) {
+    const id = String(session.offering_id)
+    if (!grouped.has(id)) grouped.set(id, [])
+    grouped.get(id).push(session)
+  }
+  return grouped
+})
 const courseSummaries = computed(() => semesterCourses.value.map(course => {
-  const sessions = semesterSessions.value.filter(s => String(s.offering_id) === String(course.offering_id))
+  const sessions = sessionsByOffering.value.get(String(course.offering_id)) || []
   const count = status => sessions.filter(s => s.attendance_status === status).length
   return {
     ...course,

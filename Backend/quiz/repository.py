@@ -196,6 +196,37 @@ def list_questions():
     )
 
 
+def list_questions_for_instructor(user_id, instructor_id):
+    """Fetch only questions an instructor may READ, in one scoped Oracle query.
+
+    Same read policy as question_access_for_instructor: author OR linked to
+    an offering taught by the instructor. Editing still uses the stricter
+    original authorization check and locks attempted questions.
+    """
+    return fetch_all(
+        f"""
+        SELECT q.QUESTION_ID, q.QUESTION_TEXT, q.QUESTION_TYPE,
+               (SELECT COUNT(*) FROM {object_name('QUESTION_OPTION')} opt
+                WHERE opt.QUESTION_ID=q.QUESTION_ID) AS OPTION_COUNT
+        FROM {object_name('QUESTION')} q
+        WHERE EXISTS (
+            SELECT 1 FROM {object_name('ACTIVITY_LOG')} a
+            WHERE a.USER_ID=?
+              AND a.ACTIVITY_DESCRIPTION='QUESTION_ID=' || TO_CHAR(q.QUESTION_ID) || ';CREATED'
+        ) OR EXISTS (
+            SELECT 1 FROM {object_name('QUIZ_QUESTION')} qq
+            JOIN {object_name('QUIZ')} quiz ON quiz.QUIZ_ID=qq.QUIZ_ID
+            JOIN {object_name('ASSESSMENT_COMPONENT')} ac ON ac.COMPONENT_ID=quiz.COMPONENT_ID
+            JOIN {object_name('GRADING_SCHEME')} gs ON gs.SCHEME_ID=ac.SCHEME_ID
+            JOIN {object_name('OFFERING_INSTRUCTOR')} oi ON oi.OFFERING_ID=gs.OFFERING_ID
+            WHERE qq.QUESTION_ID=q.QUESTION_ID AND oi.INSTRUCTOR_ID=?
+        )
+        ORDER BY q.QUESTION_ID
+        """,
+        (int(user_id or 0), int(instructor_id or 0)),
+    )
+
+
 def get_question_options(question_id, include_correct=True):
     """Return options without forcing V7 metadata through ODBC for legacy types.
 
@@ -342,21 +373,30 @@ def get_quiz_content_rows(quiz_id, include_correct=False):
         """,
         (quiz_id,),
     )
-    matching_ids = [
+    # One fetch for all MATCHING questions (rather than one per option).
+    # Preserve answer-side filtering in the service layer. Never return keys
+    # to students; the backend still needs them for matching option handles.
+    matching_ids = sorted({
         int(r["question_id"]) for r in rows
         if str(r.get("question_type", "")).upper() == "MATCHING"
-    ]
+    })
     metadata = {}
-    for qid in matching_ids:
-        metadata[qid] = fetch_all(
+    for offset in range(0, len(matching_ids), 900):
+        # Oracle 21c limits ordinary IN lists to 1,000 values.
+        batch = matching_ids[offset:offset + 900]
+        placeholders = ",".join("?" for _ in batch)
+        metadata_rows = fetch_all(
             f"""
-            SELECT OPTION_ID, TO_CHAR(MATCH_SIDE) AS MATCH_SIDE,
+            SELECT QUESTION_ID, OPTION_ID,
+                   TO_CHAR(MATCH_SIDE) AS MATCH_SIDE,
                    TO_CHAR(MATCH_KEY) AS MATCH_KEY
             FROM {object_name("QUESTION_OPTION")}
-            WHERE QUESTION_ID=?
+            WHERE QUESTION_ID IN ({placeholders})
             """,
-            (qid,),
+            tuple(batch),
         )
+        for item in metadata_rows:
+            metadata.setdefault(int(item["question_id"]), []).append(item)
     meta_by_id = {
         qid: {int(r["option_id"]): r for r in opts}
         for qid, opts in metadata.items()
@@ -381,11 +421,11 @@ def get_quiz_content_rows(quiz_id, include_correct=False):
 def start_quiz_attempt(quiz_id, student_id):
     """Start an attempt through the authoritative Oracle procedure."""
 
-    sql = """
+    sql = f"""
         DECLARE
             v_attempt_id NUMBER;
         BEGIN
-            EDUSPHERE_OWNER.PR_START_QUIZ_ATTEMPT(
+            {object_name("PR_START_QUIZ_ATTEMPT")}(
                 ?,
                 ?,
                 v_attempt_id
@@ -471,25 +511,26 @@ def get_attempt_submission_state(attempt_id):
 
 
 def get_open_attempt_for_student_quiz(student_id, quiz_id):
+    """Only expose a student's active, not-expired quiz contents/draft.
+
+    An expired attempt can still be finalized by PR_SUBMIT_QUIZ_ATTEMPT;
+    it must not grant further question retrieval or answer editing.
+    """
     return fetch_one(
         f"""
-        SELECT
-            ATTEMPT_ID,
-            QUIZ_ID,
-            STUDENT_ID,
-            ATTEMPT_NO,
-            STARTED_AT,
-            SUBMITTED_AT
-        FROM {object_name("QUIZ_ATTEMPT")}
-        WHERE STUDENT_ID=?
-          AND QUIZ_ID=?
-          AND SUBMITTED_AT IS NULL
-        ORDER BY ATTEMPT_ID DESC
+        SELECT qa.ATTEMPT_ID, qa.QUIZ_ID, qa.STUDENT_ID,
+               qa.ATTEMPT_NO, qa.STARTED_AT, qa.SUBMITTED_AT
+        FROM {object_name('QUIZ_ATTEMPT')} qa
+        JOIN {object_name('QUIZ')} q ON q.QUIZ_ID=qa.QUIZ_ID
+        WHERE qa.STUDENT_ID=? AND qa.QUIZ_ID=? AND qa.SUBMITTED_AT IS NULL
+          AND (q.CLOSE_AT IS NULL OR SYSTIMESTAMP <= q.CLOSE_AT)
+          AND (q.DURATION_MINUTES IS NULL OR SYSTIMESTAMP <= qa.STARTED_AT
+               + NUMTODSINTERVAL(q.DURATION_MINUTES, 'MINUTE'))
+        ORDER BY qa.ATTEMPT_ID DESC
         FETCH FIRST 1 ROW ONLY
         """,
         (student_id, quiz_id),
     )
-
 
 # =====================================================
 # QUIZ RESPONSES
@@ -930,9 +971,9 @@ def get_selected_options(response_id):
 
 def submit_quiz_attempt(attempt_id):
     return execute(
-        """
+        f"""
         BEGIN
-            EDUSPHERE_OWNER.PR_SUBMIT_QUIZ_ATTEMPT(?);
+            {object_name("PR_SUBMIT_QUIZ_ATTEMPT")}(?);
         END;
         """,
         (attempt_id,),

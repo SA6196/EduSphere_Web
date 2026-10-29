@@ -38,6 +38,8 @@ class ActivityTypes:
         "ENROLLMENT_CREATED"
     )
 
+    ENROLLMENT_DROPPED = "ENROLLMENT_DROPPED"
+
     QUIZ_VISIBILITY_UPDATED = (
         "QUIZ_VISIBILITY_UPDATED"
     )

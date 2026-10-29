@@ -19,9 +19,11 @@ from core.exceptions import (
 )
 from core.validators import validate_required, validate_positive_integer
 from core.audit import log_activity
+from database.connection import oracle_transaction
 
 from .repository import (
     enroll_student,
+    drop_enrollment,
     get_offering,
     record_mark,
     publish_grade,
@@ -69,6 +71,28 @@ class EnrollmentService:
                 f"Student {int(student_id)} enrolled in offering {int(offering_id)}"
             ),
         )
+        return result
+
+    @staticmethod
+    def drop_student(user_id, student_id, offering_id, user_role):
+        """Withdraw only the authenticated student's active, unused enrollment."""
+        require_role(user_role, [Roles.STUDENT])
+        validate_required(offering_id, "offering_id")
+        validate_positive_integer(offering_id, "offering_id")
+        if student_id is None:
+            raise PermissionDeniedError("Student account required.")
+
+        # The status change and its audit entry must commit or roll back together.
+        with oracle_transaction():
+            result = drop_enrollment(int(student_id), int(offering_id))
+            log_activity(
+                user_id=user_id,
+                activity_type=ActivityTypes.ENROLLMENT_DROPPED,
+                activity_description=(
+                    f"Student {int(student_id)} dropped offering {int(offering_id)} "
+                    f"(enrollment {result['enrollment_id']})"
+                ),
+            )
         return result
 
 

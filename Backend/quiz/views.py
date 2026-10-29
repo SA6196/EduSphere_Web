@@ -31,7 +31,12 @@ class QuizListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        result = QuizService.list_quizzes(request.GET.get("component_id"))
+        result = QuizService.list_quizzes(
+            request.GET.get("component_id"),
+            request.user.role,
+            request.user.student_id,
+            request.user.instructor_id,
+        )
         return Response({"success": True, "data": result})
 
 

@@ -1,0 +1,59 @@
+name: EduSphere source checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend-offline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install offline test runner
+        run: python -m pip install pytest
+      - name: Verify source and 37-table manifest
+        run: python scripts/verify_repository.py
+      - name: Compile Python sources
+        run: python -m compileall -q Backend Testing scripts
+      - name: Offline backend/security tests
+        run: python -m pytest -q Testing/test_merge_security.py Testing/test_optimized_database.py Testing/test_handoff_package.py Testing/test_api_verifier_offline.py Testing/test_question_bank_permissions_offline.py Testing/test_course_drop_backend.py
+      - name: Auto-grader cases
+        run: python Testing/check_actual_scoring_cases.py
+      - name: Vue / Django route wiring
+        run: python Testing/audit_frontend_quiz_wiring.py --project-root .
+      - name: Other static backend audits
+        run: |
+          python Backend/scripts/admin_management_code_audit.py
+          python Backend/scripts/final_code_audit.py
+          python Backend/scripts/frontend_readiness_code_audit.py
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: Frontend/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Frontend smoke suites
+        run: |
+          node frontend_smoke_check.mjs
+          node frontend_cross_role_smoke_check.mjs
+          node frontend_admin_management_smoke_check.mjs
+          node frontend_error_smoke_check.mjs
+      - name: Attendance and request-coalescing tests
+        run: node --test attendance_predictor.test.mjs request_coalescing.test.mjs course_drop.test.mjs

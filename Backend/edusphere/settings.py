@@ -35,6 +35,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "database.middleware.OracleRequestScopeMiddleware",
 ]
 
 ROOT_URLCONF = "edusphere.urls"
@@ -46,7 +47,7 @@ ASGI_APPLICATION = "edusphere.asgi.application"
 
 # EduSphere application data is accessed through Oracle ODBC/pyodbc.
 # Django's ORM is deliberately not allowed to create or migrate the
-# already-certified 31-table Oracle schema.
+# fixed 37-table Oracle schema.
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.dummy",

@@ -9,6 +9,7 @@ uses equivalent SELECT queries so JSON clients receive structured rows.
 
 from database.query import fetch_all, fetch_one
 from database.schema import object_name
+from academics.quiz_visibility import offering_has_hidden_quiz_sql
 
 
 def admin_overview():
@@ -135,6 +136,7 @@ def get_semester(semester_id):
 
 
 def student_progress(student_id, semester_id):
+    hidden_quiz = offering_has_hidden_quiz_sql("co", "e")
     return fetch_all(
         f"""
         SELECT
@@ -145,7 +147,8 @@ def student_progress(student_id, semester_id):
             c.COURSE_CODE,
             c.COURSE_NAME,
             c.CREDITS,
-            {object_name("FN_COURSE_PERCENT")}(e.ENROLLMENT_ID)
+            CASE WHEN {hidden_quiz} THEN NULL
+                 ELSE {object_name("FN_COURSE_PERCENT")}(e.ENROLLMENT_ID) END
                 AS COURSE_PERCENTAGE,
             {object_name("FN_ATTENDANCE_PCT")}(e.STUDENT_ID, co.OFFERING_ID)
                 AS ATTENDANCE_PERCENTAGE,

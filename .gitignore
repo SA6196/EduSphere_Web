@@ -1,9 +1,56 @@
+# Never commit real credentials, tokens or locally generated demo accounts.
+.env
+.env.*
+!.env.example
+!.env.*.example
 **/.env
 **/.env.*
 !**/.env.example
-**/__pycache__/
-**/*.pyc
-**/node_modules/
-**/dist/
-Database/Sample_Data/02_accounts.generated.sql
+!**/.env.*.example
+*secret*
+!docs/SECURITY.md
+!SECURITY.md
+
+# Oracle/user local settings and generated SQL
+**/02_accounts.generated.sql
+**/02_demo_accounts.sql
+**/02_sample_accounts.generated.sql
+**/credentials*.json
+**/secrets*.json
+*.wallet
+*.ora
+
+# Python / Django caches, development environments and logs
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+EduSphereVenv/
 *.log
+*.sqlite3
+
+# Node and build artifacts
+node_modules/
+Frontend/dist/
+dist/
+coverage/
+*.tsbuildinfo
+
+# OS, IDE, session reports
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Benchmark results, interactive live-test reports, local downloads
+performance_results.json
+comparison_results.json
+*_results.json
+!Testing/OFFLINE_QA_RESULTS.json
+*.zip

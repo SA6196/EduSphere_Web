@@ -125,6 +125,20 @@ class EnrollmentCreateView(APIView):
         return Response(result, status=status.HTTP_201_CREATED)
 
 
+class EnrollmentDropView(APIView):
+    """Student-only logical withdrawal; never deletes Oracle rows."""
+    permission_classes = [IsStudent]
+
+    def post(self, request, offering_id):
+        result = EnrollmentService.drop_student(
+            user_id=request.user.user_id,
+            student_id=request.user.student_id,
+            offering_id=offering_id,
+            user_role=request.user.role,
+        )
+        return Response({"success": True, "data": result})
+
+
 class MyEnrollmentView(APIView):
     permission_classes = [IsStudent]
 

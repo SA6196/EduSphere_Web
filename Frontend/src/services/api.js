@@ -22,6 +22,7 @@ export const api = {
     grading: (id) => request(`/offerings/${id}/grading/`).then(unwrap),
     roster: (id) => request(`/instructor/offerings/${id}/roster/`).then(unwrap),
     enroll: (offeringId) => request('/enrollments/', { method: 'POST', body: j({ offering_id: offeringId }) }).then(unwrap),
+    dropCourse: (offeringId) => request(`/enrollments/${offeringId}/drop/`, { method: 'POST' }).then(unwrap),
     myEnrollments: () => request('/enrollments/my/').then(unwrap),
     recordMark: (payload) => request('/marks/record/', { method: 'POST', body: j(payload) }).then(unwrap),
     publishGrade: (enrollmentId) => request('/grades/publish/', { method: 'POST', body: j({ enrollment_id: enrollmentId }) }).then(unwrap),

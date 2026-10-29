@@ -5,7 +5,9 @@ from database.query import (
     execute_procedure,
 )
 from django.conf import settings
+from core.exceptions import NotFoundError, BusinessRuleError
 from database.schema import object_name
+from .quiz_visibility import quiz_marks_visible_sql, offering_has_hidden_quiz_sql
 
 
 
@@ -26,6 +28,7 @@ def student_dashboard(user_id: int):
     fn_percent = object_name(
         "FN_COURSE_PERCENT"
     )
+    hidden_quiz = offering_has_hidden_quiz_sql("co", "e")
 
     fn_cgpa = object_name(
         "FN_CGPA"
@@ -68,7 +71,8 @@ def student_dashboard(user_id: int):
             c.Credits,
             sem.Semester_Name,
             sem.Academic_Year,
-            {fn_percent}(e.Enrollment_ID)
+            CASE WHEN {hidden_quiz} THEN NULL
+                 ELSE {fn_percent}(e.Enrollment_ID) END
                 AS Course_Percentage,
             {fn_attendance}
                 (
@@ -330,6 +334,86 @@ def enroll_student(student_id, offering_id):
 
 
 
+def drop_enrollment(student_id, offering_id):
+    """Logical enrollment withdrawal, called inside an oracle_transaction().
+
+    Lock the student's enrollment and refuse withdrawal once any academic work
+    exists. Preserves all grading/attendance history and the UNIQUE key.
+    """
+    enrollment = fetch_one(
+        f"""
+        SELECT e.ENROLLMENT_ID, e.ENROLLMENT_STATUS, co.OFFERING_STATUS
+        FROM {object_name('ENROLLMENT')} e
+        JOIN {object_name('COURSE_OFFERING')} co ON co.OFFERING_ID=e.OFFERING_ID
+        WHERE e.STUDENT_ID=? AND e.OFFERING_ID=?
+        FOR UPDATE OF e.ENROLLMENT_STATUS
+        """,
+        (student_id, offering_id),
+    )
+    if not enrollment:
+        # Do not disclose whether another student's enrollment exists.
+        raise NotFoundError("Enrollment not found for this student.")
+    if enrollment["enrollment_status"] != "ENROLLED":
+        raise BusinessRuleError("Only an active enrollment can be dropped.")
+    if enrollment["offering_status"] != "OPEN":
+        raise BusinessRuleError("Course withdrawal is permitted only while the offering is OPEN.")
+
+    # EXISTS stops at the first matching row. All joins and parameters are scoped
+    # to this authenticated student/offering; no test data is altered here.
+    activity = fetch_one(
+        f"""
+        SELECT CASE WHEN
+            EXISTS (
+                SELECT 1 FROM {object_name('ATTENDANCE')} a
+                JOIN {object_name('CLASS_SESSION')} cs ON cs.SESSION_ID=a.SESSION_ID
+                WHERE a.STUDENT_ID=? AND cs.OFFERING_ID=?
+            ) OR EXISTS (
+                SELECT 1 FROM {object_name('ASSIGNMENT_SUBMISSION')} sub
+                JOIN {object_name('ASSIGNMENT')} a ON a.ASSIGNMENT_ID=sub.ASSIGNMENT_ID
+                JOIN {object_name('ASSESSMENT_COMPONENT')} ac ON ac.COMPONENT_ID=a.COMPONENT_ID
+                JOIN {object_name('GRADING_SCHEME')} gs ON gs.SCHEME_ID=ac.SCHEME_ID
+                WHERE sub.STUDENT_ID=? AND gs.OFFERING_ID=?
+            ) OR EXISTS (
+                SELECT 1 FROM {object_name('QUIZ_ATTEMPT')} qa
+                JOIN {object_name('QUIZ')} q ON q.QUIZ_ID=qa.QUIZ_ID
+                JOIN {object_name('ASSESSMENT_COMPONENT')} ac ON ac.COMPONENT_ID=q.COMPONENT_ID
+                JOIN {object_name('GRADING_SCHEME')} gs ON gs.SCHEME_ID=ac.SCHEME_ID
+                WHERE qa.STUDENT_ID=? AND gs.OFFERING_ID=?
+            ) OR EXISTS (
+                SELECT 1 FROM {object_name('STUDENT_MARK')} sm
+                WHERE sm.ENROLLMENT_ID=?
+            ) OR EXISTS (
+                SELECT 1 FROM {object_name('COURSE_GRADE')} cg
+                WHERE cg.ENROLLMENT_ID=?
+            ) THEN 1 ELSE 0 END AS HAS_ACTIVITY
+        FROM DUAL
+        """,
+        (student_id, offering_id, student_id, offering_id,
+         student_id, offering_id, enrollment["enrollment_id"], enrollment["enrollment_id"]),
+    )
+    if activity and activity["has_activity"]:
+        raise BusinessRuleError(
+            "Cannot drop this course after attendance, submissions, quiz attempts, or grades exist."
+        )
+
+    changed = execute(
+        f"""
+        UPDATE {object_name('ENROLLMENT')}
+        SET ENROLLMENT_STATUS='DROPPED'
+        WHERE ENROLLMENT_ID=? AND STUDENT_ID=? AND ENROLLMENT_STATUS='ENROLLED'
+        """,
+        (enrollment["enrollment_id"], student_id),
+    )
+    if changed != 1:
+        raise BusinessRuleError("Enrollment status changed; please refresh and try again.")
+    return {
+        "message": "Course dropped successfully.",
+        "enrollment_id": int(enrollment["enrollment_id"]),
+        "offering_id": int(offering_id),
+        "enrollment_status": "DROPPED",
+    }
+
+
 def my_enrollments(student_id):
     return fetch_all(
         f"""
@@ -420,6 +504,7 @@ def student_marks(student_id):
     in which the mark was recorded. No Oracle DDL changes are needed.
     Quiz rows remain governed by ALLOW_MARK_VIEW.
     """
+    can_show_quiz = quiz_marks_visible_sql('q', 'e')
     sql = f"""
         SELECT
             sm.MARK_ID,
@@ -453,7 +538,7 @@ def student_marks(student_id):
         LEFT JOIN {object_name("QUIZ")} q
           ON q.COMPONENT_ID=ac.COMPONENT_ID
         WHERE e.STUDENT_ID=?
-          AND (ac.COMPONENT_TYPE <> 'QUIZ' OR q.QUIZ_ID IS NULL OR q.ALLOW_MARK_VIEW='Y')
+          AND (ac.COMPONENT_TYPE <> 'QUIZ' OR {can_show_quiz})
         ORDER BY sem.SEMESTER_START_DATE DESC, c.COURSE_CODE, sm.COMPONENT_ID
     """
     return fetch_all(sql, (student_id,))
@@ -477,6 +562,8 @@ def student_semester_markbook(student_id):
         WHERE e.STUDENT_ID=?
         ORDER BY SEMESTER_START_DATE DESC, sem.SEMESTER_ID DESC
     """
+    can_show_quiz = quiz_marks_visible_sql('q', 'e')
+    quiz_hidden = f"ac.COMPONENT_TYPE='QUIZ' AND NOT {can_show_quiz}"
     assessments_sql = f"""
         SELECT
             e.ENROLLMENT_ID, co.OFFERING_ID,
@@ -484,17 +571,11 @@ def student_semester_markbook(student_id):
             c.COURSE_CODE, c.COURSE_NAME, co.SECTION_CODE,
             ac.COMPONENT_ID, ac.COMPONENT_NAME, ac.COMPONENT_TYPE,
             ac.WEIGHT_PERCENTAGE, ac.MAX_MARKS,
-            CASE WHEN ac.COMPONENT_TYPE='QUIZ'
-                       AND q.QUIZ_ID IS NOT NULL
-                       AND NVL(q.ALLOW_MARK_VIEW,'N') <> 'Y'
+            CASE WHEN {quiz_hidden}
                  THEN NULL ELSE sm.MARKS_OBTAINED END AS MARKS_OBTAINED,
-            CASE WHEN ac.COMPONENT_TYPE='QUIZ'
-                       AND q.QUIZ_ID IS NOT NULL
-                       AND NVL(q.ALLOW_MARK_VIEW,'N') <> 'Y'
+            CASE WHEN {quiz_hidden}
                  THEN NULL ELSE sm.RECORDED_AT END AS RECORDED_AT,
-            CASE WHEN ac.COMPONENT_TYPE='QUIZ'
-                       AND q.QUIZ_ID IS NOT NULL
-                       AND NVL(q.ALLOW_MARK_VIEW,'N') <> 'Y'
+            CASE WHEN {quiz_hidden}
                  THEN 'HIDDEN'
                  WHEN sm.MARK_ID IS NOT NULL THEN 'RECORDED'
                  ELSE 'PENDING' END AS MARK_STATUS,

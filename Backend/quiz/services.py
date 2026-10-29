@@ -30,6 +30,7 @@ from core.exceptions import (
 )
 from core.validators import validate_required, validate_positive_integer
 from assignments.repository import get_component, instructor_owns_offering
+from academics.repository import student_has_offering
 
 from .auto_grader import auto_grade_attempt, synchronize_quiz_component_mark, load_responses
 from database.query import fetch_one
@@ -46,6 +47,7 @@ from .repository import (
     get_question_by_text_type,
     get_enrollment_context_for_quiz_attempt,
     list_questions,
+    list_questions_for_instructor,
     get_question_options,
     get_option,
     add_question_to_quiz,
@@ -191,9 +193,21 @@ class QuizService:
         return {"message": "Quiz created successfully"}
 
     @staticmethod
-    def list_quizzes(component_id):
+    def list_quizzes(component_id, user_role, student_id=None, instructor_id=None):
+        require_role(user_role, [Roles.STUDENT, Roles.INSTRUCTOR, Roles.ADMIN])
         validate_positive_integer(component_id, "component_id")
-        return get_quizzes(component_id)
+        component = get_component(int(component_id))
+        if not component:
+            raise NotFoundError("Assessment component not found.")
+        if user_role == Roles.STUDENT and not student_has_offering(
+            int(student_id or 0), int(component["offering_id"])
+        ):
+            raise PermissionDeniedError("This quiz belongs to another course.")
+        if user_role == Roles.INSTRUCTOR and not instructor_owns_offering(
+            int(instructor_id or 0), int(component["offering_id"])
+        ):
+            raise PermissionDeniedError("Instructor is not assigned to this course.")
+        return get_quizzes(int(component_id))
 
     @staticmethod
     def update_visibility(
@@ -307,12 +321,9 @@ class QuizService:
     @staticmethod
     def question_bank(user_role, instructor_id=None, user_id=None):
         require_role(user_role, [Roles.INSTRUCTOR, Roles.ADMIN])
-        questions = list_questions()
         if user_role == Roles.ADMIN:
-            return questions
-        return [q for q in questions if question_access_for_instructor(
-            int(q["question_id"]), instructor_id, user_id, edit=False
-        )]
+            return list_questions()
+        return list_questions_for_instructor(user_id, instructor_id)
 
     @staticmethod
     def question_detail(user_role, question_id, instructor_id=None, user_id=None):
@@ -690,6 +701,9 @@ class QuizService:
             )
         if attempt.get("submitted_at") is not None:
             raise BusinessRuleError("This quiz attempt has already been submitted.")
+        state = get_attempt_submission_state(int(attempt_id))
+        if not state or state.get("submission_state") != "READY":
+            raise BusinessRuleError("This quiz attempt has expired or closed. Submit it to finalize saved answers.")
 
         q = get_question(int(question_id))
         if not q:
@@ -822,6 +836,9 @@ class QuizService:
             )
         if response.get("submitted_at") is not None:
             raise BusinessRuleError("This quiz attempt has already been submitted.")
+        state = get_attempt_submission_state(int(response["attempt_id"]))
+        if not state or state.get("submission_state") != "READY":
+            raise BusinessRuleError("This quiz attempt has expired or closed.")
 
         option = get_option(int(option_id))
         if not option:
@@ -861,11 +878,14 @@ class QuizService:
 
         submit_quiz_attempt(attempt_id)
         try:
-            grading = auto_grade_attempt(int(attempt_id))
-        except Exception as exc:
-            # The attempt is already authoritative/submitted; instructor can
-            # retry grading through the instructor grading endpoint.
-            grading = {"status": "GRADING_ERROR", "message": str(exc)}
+            # Internal grade values must NEVER be serialized in a student
+            # submission response. The flag may still prohibit mark viewing.
+            auto_grade_attempt(int(attempt_id))
+            grading_state = "PROCESSED"
+        except Exception:
+            # Submission is authoritative. Grading can be retried by an
+            # instructor; do not disclose Oracle errors to the student.
+            grading_state = "RETRY_REQUIRED"
         log_activity(
             user_id=user_id,
             activity_type=ActivityTypes.QUIZ_ATTEMPT_SUBMITTED,
@@ -873,7 +893,7 @@ class QuizService:
         )
         return {
             "message": "Quiz attempt submitted successfully",
-            "grading": grading,
+            "grading": {"status": grading_state},
         }
 
     @staticmethod
@@ -1147,6 +1167,10 @@ class QuizService:
             raise BusinessRuleError(
                 "Quiz review is available only after the attempt is submitted."
             )
+        # Review includes per-question marks and correctness. Never expose it
+        # while the separate mark-publication control is disabled.
+        if context.get("allow_mark_view") != "Y":
+            raise PermissionDeniedError("Quiz marks are not currently visible.")
         if context["allow_answer_review"] != "Y" or not context.get("review_allowed"):
             raise PermissionDeniedError(
                 "Answer keys are hidden until all attempts are used or the quiz closes."
