@@ -60,6 +60,7 @@ export const api = {
     content: (quizId) => request(`/quizzes/${quizId}/content/`).then(unwrap),
     visibility: (quizId, payload) => request(`/quizzes/${quizId}/visibility/`, { method: 'PATCH', body: j(payload) }).then(unwrap),
     startAttempt: (quizId) => request(`/quizzes/${quizId}/attempt/`, { method: 'POST' }).then(unwrap),
+    pendingAttempt: (quizId) => request(`/quizzes/${quizId}/pending/`).then(unwrap),
     response: (attemptId, payload) => request(`/quizzes/attempt/${attemptId}/response/`, { method: 'POST', body: j(payload) }).then(unwrap),
     responseOption: (payload) => request('/quizzes/attempt/response/option/', { method: 'POST', body: j(payload) }).then(unwrap),
     submitAttempt: (attemptId) => request(`/quizzes/attempt/${attemptId}/submit/`, { method: 'POST' }).then(unwrap),

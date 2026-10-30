@@ -69,6 +69,19 @@ class QuizVisibilityView(APIView):
         return Response({"success": True, "data": result})
 
 
+class QuizPendingAttemptView(APIView):
+    authentication_classes = [LMSJWTAuthentication]
+    permission_classes = [IsStudent]
+
+    def get(self, request, quiz_id):
+        data = QuizService.pending_attempt(
+            student_id=request.user.student_id,
+            user_role=request.user.role,
+            quiz_id=quiz_id,
+        )
+        return Response({"success": True, "data": data})
+
+
 class QuizAttemptView(APIView):
     authentication_classes = [LMSJWTAuthentication]
     permission_classes = [IsStudent]

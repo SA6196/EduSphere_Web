@@ -58,6 +58,7 @@ from .repository import (
     get_attempt_submission_state,
     question_belongs_to_quiz,
     get_open_attempt_for_student_quiz,
+    get_pending_attempt_for_student_quiz,
     get_response,
     get_response_by_attempt_question,
     create_response,
@@ -85,7 +86,7 @@ from .repository import (
     clear_response_children,
     set_question_grade,
     submit_quiz_attempt,
-    quiz_has_attempts,
+    quiz_has_pending_attempts,
     question_has_attempts,
 )
 
@@ -347,6 +348,7 @@ class QuizService:
         }
 
     @staticmethod
+    @atomic_oracle
     def add_question(
         user_id,
         user_role,
@@ -373,8 +375,11 @@ class QuizService:
             raise NotFoundError("Quiz not found.")
         if not get_question(int(question_id)):
             raise NotFoundError("Question not found.")
-        if quiz_has_attempts(int(quiz_id)):
-            raise BusinessRuleError("Quiz questions are locked after the first attempt. Create a new quiz for revisions.")
+        if quiz_has_pending_attempts(int(quiz_id)):
+            raise BusinessRuleError(
+                "Finish and grade all existing quiz attempts before adding new questions. "
+                "Existing answers and previously attempted question keys remain locked."
+            )
         if user_role == Roles.INSTRUCTOR and not question_access_for_instructor(
             int(question_id), instructor_id, user_id, edit=False
         ):
@@ -402,7 +407,7 @@ class QuizService:
                 f"Question {int(question_id)} added to quiz {int(quiz_id)}"
             ),
         )
-        return {"message": "Question added successfully"}
+        return {"message": "Question added successfully. Earlier graded attempts are unchanged."}
 
     @staticmethod
     def add_option(
@@ -643,6 +648,29 @@ class QuizService:
             "saved_responses": saved_responses,
             "question_count": len(questions),
             "questions": questions,
+        }
+
+    @staticmethod
+    def pending_attempt(student_id, user_role, quiz_id):
+        """Return only the caller's pending attempt ID and finalization state.
+
+        Expired and closed attempts cannot view questions or change answers,
+        but can be finalized using the existing authenticated submit endpoint.
+        """
+        require_role(user_role, [Roles.STUDENT])
+        validate_positive_integer(quiz_id, "quiz_id")
+        if not get_quiz(int(quiz_id)):
+            raise NotFoundError("Quiz not found.")
+        pending = get_pending_attempt_for_student_quiz(int(student_id), int(quiz_id))
+        if not pending:
+            return {"attempt_id": None, "submission_state": None}
+        attempt_id = int(pending["attempt_id"])
+        state = get_attempt_submission_state(attempt_id)
+        if not state or state.get("submission_state") == "ALREADY_SUBMITTED":
+            return {"attempt_id": None, "submission_state": None}
+        return {
+            "attempt_id": attempt_id,
+            "submission_state": state["submission_state"],
         }
 
     @staticmethod

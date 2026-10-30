@@ -7,6 +7,7 @@ from .views import (
     QuizContentView,
     QuizVisibilityView,
     QuizAttemptView,
+    QuizPendingAttemptView,
     QuizResponseView,
     QuestionListView,
     QuestionDetailView,
@@ -36,6 +37,7 @@ urlpatterns = [
         name="quiz-visibility",
     ),
     path("<int:quiz_id>/attempt/", QuizAttemptView.as_view(), name="quiz-attempt"),
+    path("<int:quiz_id>/pending/", QuizPendingAttemptView.as_view(), name="quiz-pending-attempt"),
     path(
         "attempt/<int:attempt_id>/response/",
         QuizResponseView.as_view(),

@@ -1,0 +1,67 @@
+{
+  "python pytest suite": {
+    "passed": true,
+    "exit_code": 0,
+    "output": "...............................................................          [100%]\n63 passed in 1.54s"
+  },
+  "scoring 13 cases": {
+    "passed": true,
+    "exit_code": 0,
+    "output": "PASS MCQ_SINGLE correct 10\nPASS MCQ_SINGLE incorrect 0\nPASS MCQ_MULTI exact 10\nPASS MCQ_MULTI extra 0\nPASS TRUE_FALSE 10\nPASS NUMERICAL tolerance 10\nPASS SHORT_TEXT normalized 10\nPASS FILL_BLANK ordered 10\nPASS FILL_BLANK mismatch 0\nPASS ORDERING partial 3.00\nPASS MATCHING correct 10\nPASS LONG_TEXT pending 0\nPASS MCQ no answer key 0\nTOTAL 13 PASSED 13 FAILED 0"
+  },
+  "python compile all": {
+    "passed": true,
+    "exit_code": 0,
+    "output": ""
+  },
+  "backend audit final_code_audit.py": {
+    "passed": true,
+    "exit_code": 0,
+    "output": "Referenced ActivityTypes: ['ANNOUNCEMENT_POSTED', 'ASSIGNMENT_CREATED', 'ASSIGNMENT_SUBMITTED', 'CLASS_SESSION_CREATED', 'ENROLLMENT_CREATED', 'EXAM_SCHEDULED', 'GRADE_PUBLISHED', 'MARK_RECORDED', 'MATERIAL_CREATED', 'QUESTION_CREATED', 'QUESTION_OPTION_CREATED', 'QUIZ_ATTEMPT_STARTED', 'QUIZ_ATTEMPT_SUBMITTED', 'QUIZ_CREATED', 'QUIZ_QUESTION_ADDED', 'QUIZ_RESPONSE_SUBMITTED', 'QUIZ_VISIBILITY_UPDATED']\nMissing ActivityTypes: []\nDirect ACTIVITY_LOG inserts: none\nFINAL CODE AUDIT: PASS"
+  },
+  "backend audit frontend_readiness_code_audit.py": {
+    "passed": true,
+    "exit_code": 0,
+    "output": "[PASS] INSTALLED_APPS contains materials\n[PASS] INSTALLED_APPS contains announcements\n[PASS] INSTALLED_APPS contains exams\n[PASS] INSTALLED_APPS contains gpa\n[PASS] INSTALLED_APPS contains reports\n[PASS] grading discovery route\n[PASS] instructor roster route\n[PASS] class-session creation route\n[PASS] quiz content route\n[PASS] question-bank list route\n[PASS] question detail route\n[PASS] quiz result route\n[PASS] quiz review route\n[PASS] student quiz content requires an open attempt\n[PASS] quiz result respects ALLOW_MARK_VIEW\n[PASS] quiz review respects ALLOW_ANSWER_REVIEW\n[PASS] response creation returns response_id\n[PASS] instructor grading/roster ownership checks\n[PASS] class-session creation is audited\n[PASS] fixed schema grants include CLASS_SESSION INSERT\nFRONTEND READINESS CODE AUDIT: PASS"
+  },
+  "backend audit admin_management_code_audit.py": {
+    "passed": true,
+    "exit_code": 0,
+    "output": "[PASS] administration app registered\n[PASS] administration URLs mounted\n[PASS] student account API\n[PASS] instructor account API\n[PASS] offering creation API\n[PASS] instructor assignment API\n[PASS] grading scheme API\n[PASS] atomic Oracle transaction use\n[PASS] password hashing\n[PASS] published-grade grading lock\n[SKIP] canonical LMS_USER INSERT grant (deployment SQL not present in this baseline)\n[SKIP] admin grant delta (deployment SQL not present in this baseline)\n[SKIP] admin privilege verification (deployment SQL not present in this baseline)\nADMIN MANAGEMENT CODE AUDIT: PASS"
+  },
+  "frontend attendance_predictor.test.mjs": {
+    "passed": true,
+    "exit_code": 0,
+    "output": "o eligible sessions means undefined observed percentage\nok 6 - zero eligible sessions means undefined observed percentage\n  ---\n  duration_ms: 0.144748\n  type: 'test'\n  ...\n# Subtest: number of needed attended sessions satisfies exact target\nok 7 - number of needed attended sessions satisfies exact target\n  ---\n  duration_ms: 0.176345\n  type: 'test'\n  ...\n# Subtest: safe misses are computed from current >= target\nok 8 - safe misses are computed from current >= target\n  ---\n  duration_ms: 0.101383\n  type: 'test'\n  ...\n# Subtest: cannot reach a perfect 100 percent once a counted absence exists\nok 9 - cannot reach a perfect 100 percent once a counted absence exists\n  ---\n  duration_ms: 0.277927\n  type: 'test'\n  ...\n# Subtest: perfect score has no miss budget at target 100\nok 10 - perfect score has no miss budget at target 100\n  ---\n  duration_ms: 0.287742\n  type: 'test'\n  ...\n# Subtest: invalid and out-of-range future classes and misses clamp safely\nok 11 - invalid and out-of-range future classes and misses clamp safely\n  ---\n  duration_ms: 0.14612\n  type: 'test'\n  ...\n# Subtest: planned line endpoint equals the exact what-if projection\nok 12 - planned line endpoint equals the exact what-if projection\n  ---\n  duration_ms: 0.256735\n  type: 'test'\n  ...\n# Subtest: the chart handles no observed records or no future sessions\nok 13 - the chart handles no observed records or no future sessions\n  ---\n  duration_ms: 0.092238\n  type: 'test'\n  ...\n# Subtest: percentage never counts unknown future sessions in the denominator\nok 14 - percentage never counts unknown future sessions in the denominator\n  ---\n  duration_ms: 0.178678\n  type: 'test'\n  ...\n# Subtest: the attendance page has the new chart component but performance stays graph-free\nok 15 - the attendance page has the new chart component but performance stays graph-free\n  ---\n  duration_ms: 0.389405\n  type: 'test'\n  ...\n# Subtest: the predictor calls no backend endpoint and does not write data\nok 16 - the predictor calls no backend endpoint and does not write data\n  ---\n  duration_ms: 0.855245\n  type: 'test'\n  ...\n1..16\n# tests 16\n# suites 0\n# pass 16\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 16.617371"
+  },
+  "frontend request_coalescing.test.mjs": {
+    "passed": true,
+    "exit_code": 0,
+    "output": "TAP version 13\n# Subtest: identical concurrent GET requests share one network request\nok 1 - identical concurrent GET requests share one network request\n  ---\n  duration_ms: 56.876797\n  type: 'test'\n  ...\n# Subtest: POSTs must never be deduplicated\nok 2 - POSTs must never be deduplicated\n  ---\n  duration_ms: 5.974409\n  type: 'test'\n  ...\n# Subtest: different login access tokens never share responses\nok 3 - different login access tokens never share responses\n  ---\n  duration_ms: 16.861223\n  type: 'test'\n  ...\n# Subtest: an abortable GET is never coalesced\nok 4 - an abortable GET is never coalesced\n  ---\n  duration_ms: 5.024788\n  type: 'test'\n  ...\n1..4\n# tests 4\n# suites 0\n# pass 4\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 91.847012"
+  },
+  "frontend frontend_smoke_check.mjs": {
+    "passed": true,
+    "exit_code": 0,
+    "output": "ataTable.vue\n[PASS] src/components/ConfirmDialog.vue\n[PASS] src/components/LoadingState.vue\n[PASS] src/components/BarChart.vue\n[PASS] src/components/CalendarMonth.vue\n[PASS] src/components/FileUrlField.vue\n[PASS] src/components/workspace/WorkspaceOverviewTab.vue\n[PASS] src/components/workspace/WorkspaceMaterialsTab.vue\n[PASS] src/components/workspace/WorkspaceAnnouncementsTab.vue\n[PASS] src/components/workspace/WorkspaceSessionsTab.vue\n[PASS] src/components/workspace/WorkspaceAssignmentsTab.vue\n[PASS] src/components/workspace/WorkspaceQuizzesTab.vue\n[PASS] src/components/workspace/WorkspaceExamsTab.vue\n[PASS] src/components/workspace/WorkspaceAttendanceTab.vue\n[PASS] src/components/workspace/WorkspaceRosterGradingTab.vue\n[PASS] src/components/workspace/WorkspaceRecordAttendanceTab.vue\n[PASS] src/views/LoginView.vue\n[PASS] src/views/CatalogView.vue\n[PASS] src/views/OfferingWorkspaceView.vue\n[PASS] src/views/student/StudentDashboardView.vue\n[PASS] src/views/student/StudentPerformanceView.vue\n[PASS] src/views/student/StudentAttendanceView.vue\n[PASS] src/views/student/QuizAttemptView.vue\n[PASS] src/views/instructor/InstructorDashboardView.vue\n[PASS] src/views/instructor/QuestionBankView.vue\n[PASS] src/views/admin/AdminDashboardView.vue\n[PASS] src/views/admin/AdminReportsView.vue\n[PASS] FRONTEND_LIMITATIONS_V2.md\n[PASS] catalog enrollment awareness\n[PASS] workspace component split\n[PASS] student semester-first marks\n[PASS] student semester-wise attendance\n[PASS] admin named student selector\n[PASS] quiz countdown\n[PASS] quiz local draft\n[PASS] table sorting\n[PASS] file capability honesty\n[PASS] endpoint /auth/login/\n[PASS] endpoint /student/dashboard/\n[PASS] endpoint /instructor/offerings/\n[PASS] endpoint /admin/summary/\n[PASS] endpoint /offerings/${id}/grading/\n[PASS] endpoint /attendance/sessions/\n[PASS] endpoint /assignments/create/\n[PASS] endpoint /materials/create/\n[PASS] endpoint /announcements/create/\n[PASS] endpoint /quizzes/${quizId}/content/\n[PASS] endpoint /quizzes/questions/\n[PASS] endpoint /quizzes/attempt/${attemptId}/result/\n[PASS] endpoint /exams/schedule/\n[PASS] endpoint /gpa/my/\n[PASS] endpoint /reports/admin/overview/\nFRONTEND UX SMOKE CHECK: PASS"
+  },
+  "frontend frontend_cross_role_smoke_check.mjs": {
+    "passed": true,
+    "exit_code": 0,
+    "output": "[PASS] date-only detection is exact\n[PASS] datetime detection is exact\n[PASS] role-aware catalog copy\n[PASS] offering lifecycle awareness\n[PASS] configured quiz components excluded\n[PASS] student attendance hides technical IDs\n[PASS] student exams use human-facing columns\n[PASS] profile remains functional\n[PASS] admin semesters hide database IDs\n[PASS] admin roster hides internal IDs\n[PASS] submission URLs are human-readable links\n[PASS] instructor roster hides internal IDs\n[PASS] pyodbc exception-set errors sanitized\n[PASS] file capability wording is explicit\nCROSS-ROLE FRONTEND SMOKE CHECK: PASS"
+  },
+  "frontend frontend_error_smoke_check.mjs": {
+    "passed": true,
+    "exit_code": 0,
+    "output": "FRONTEND ERROR-HANDLING SMOKE CHECK: PASS"
+  },
+  "frontend frontend_admin_management_smoke_check.mjs": {
+    "passed": true,
+    "exit_code": 0,
+    "output": "[PASS] admin route\n[PASS] admin nav item\n[PASS] admin API directory\n[PASS] student creation API\n[PASS] instructor creation API\n[PASS] offering creation API\n[PASS] grading API\n[PASS] management tabs\n[PASS] student form\n[PASS] instructor form\n[PASS] class offering form\n[PASS] instructor assignments\n[PASS] weight total\n[PASS] published-grade lock\nADMIN MANAGEMENT FRONTEND SMOKE: PASS"
+  },
+  "quiz wiring 17 routes": {
+    "passed": true,
+    "exit_code": 0,
+    "output": "EduSphere frontend -> Django quiz routing (static read-only):\nPASS questions -- questions/\nPASS question -- questions/<int:question_id>/\nPASS createQuestion -- questions/create/\nPASS createOption -- questions/options/create/\nPASS addQuestion -- questions/add/\nPASS create -- create/\nPASS list -- \nPASS content -- <int:quiz_id>/content/\nPASS startAttempt -- <int:quiz_id>/attempt/\nPASS response -- attempt/<int:attempt_id>/response/\nPASS submitAttempt -- attempt/<int:attempt_id>/submit/\nPASS result -- attempt/<int:attempt_id>/result/\nPASS review -- attempt/<int:attempt_id>/review/\nPASS grading -- <int:quiz_id>/grading/\nPASS gradingDetail -- attempt/<int:attempt_id>/grading/\nPASS reviewGrading -- attempt/<int:attempt_id>/grading/\nPASS releaseGrading -- attempt/<int:attempt_id>/grading/release/\nNOTE: Default frontend API URL is port 8000 (ORIGINAL).\nFor staging UI only, set VITE_API_BASE_URL=http://127.0.0.1:8001/api in a staging-specific frontend .env.local.\nPASS: Student MCQ answers are sent as selected_option_ids to response endpoint.\nPASS: all 17 checked API call-to-route pairs are connected.\nLIMITATION: this is a static source check, not a Vue browser build or UI click test."
+  }
+}

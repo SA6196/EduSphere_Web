@@ -510,6 +510,24 @@ def get_attempt_submission_state(attempt_id):
     )
 
 
+def get_pending_attempt_for_student_quiz(student_id, quiz_id):
+    """Find an unfinished attempt even if its timer or quiz window expired.
+
+    This intentionally returns metadata only, not quiz questions or answers.
+    It is scoped to the authenticated student to prevent ID enumeration.
+    """
+    return fetch_one(
+        f"""
+        SELECT ATTEMPT_ID, QUIZ_ID, STUDENT_ID, ATTEMPT_NO, STARTED_AT
+        FROM {object_name('QUIZ_ATTEMPT')}
+        WHERE STUDENT_ID=? AND QUIZ_ID=? AND SUBMITTED_AT IS NULL
+        ORDER BY ATTEMPT_ID DESC
+        FETCH FIRST 1 ROW ONLY
+        """,
+        (int(student_id), int(quiz_id)),
+    )
+
+
 def get_open_attempt_for_student_quiz(student_id, quiz_id):
     """Only expose a student's active, not-expired quiz contents/draft.
 
@@ -677,9 +695,9 @@ def list_student_quiz_attempts(student_id):
             gs.OFFERING_ID,
             c.COURSE_CODE,
             c.COURSE_NAME,
-            (SELECT COUNT(*) FROM {object_name('QUIZ_QUESTION')} qq
-             JOIN {object_name('QUESTION')} qn ON qn.QUESTION_ID=qq.QUESTION_ID
-             WHERE qq.QUIZ_ID=q.QUIZ_ID AND qn.QUESTION_TYPE='LONG_TEXT') AS LONG_TEXT_COUNT,
+            (SELECT COUNT(*) FROM {object_name('QUIZ_QUESTION_GRADE')} qqg
+             JOIN {object_name('QUESTION')} qn ON qn.QUESTION_ID=qqg.QUESTION_ID
+             WHERE qqg.GRADING_ID=qg.GRADING_ID AND qn.QUESTION_TYPE='LONG_TEXT') AS LONG_TEXT_COUNT,
             CASE WHEN (q.CLOSE_AT IS NOT NULL AND SYSTIMESTAMP > q.CLOSE_AT)
                  OR (SELECT COUNT(*) FROM {object_name('QUIZ_ATTEMPT')} qa2
                      WHERE qa2.QUIZ_ID=qa.QUIZ_ID AND qa2.STUDENT_ID=qa.STUDENT_ID) >= q.MAX_ATTEMPTS
@@ -897,9 +915,9 @@ def get_attempt_result_context(attempt_id):
             gs.OFFERING_ID,
             q.MAX_ATTEMPTS,
             q.CLOSE_AT,
-            (SELECT COUNT(*) FROM {object_name('QUIZ_QUESTION')} qq
-             JOIN {object_name('QUESTION')} qn ON qn.QUESTION_ID=qq.QUESTION_ID
-             WHERE qq.QUIZ_ID=q.QUIZ_ID AND qn.QUESTION_TYPE='LONG_TEXT') AS LONG_TEXT_COUNT,
+            (SELECT COUNT(*) FROM {object_name('QUIZ_QUESTION_GRADE')} qqg
+             JOIN {object_name('QUESTION')} qn ON qn.QUESTION_ID=qqg.QUESTION_ID
+             WHERE qqg.GRADING_ID=qg.GRADING_ID AND qn.QUESTION_TYPE='LONG_TEXT') AS LONG_TEXT_COUNT,
             CASE WHEN (q.CLOSE_AT IS NOT NULL AND SYSTIMESTAMP > q.CLOSE_AT)
                  OR (SELECT COUNT(*) FROM {object_name('QUIZ_ATTEMPT')} qa2
                      WHERE qa2.QUIZ_ID=qa.QUIZ_ID AND qa2.STUDENT_ID=qa.STUDENT_ID) >= q.MAX_ATTEMPTS
@@ -944,6 +962,13 @@ def get_attempt_review_questions(attempt_id):
           ON qr.ATTEMPT_ID=qa.ATTEMPT_ID
          AND qr.QUESTION_ID=qq.QUESTION_ID
         WHERE qa.ATTEMPT_ID=?
+          AND EXISTS (
+              SELECT 1 FROM {object_name('QUIZ_GRADING')} qg
+              JOIN {object_name('QUIZ_QUESTION_GRADE')} qqg
+                ON qqg.GRADING_ID=qg.GRADING_ID
+              WHERE qg.ATTEMPT_ID=qa.ATTEMPT_ID
+                AND qqg.QUESTION_ID=qq.QUESTION_ID
+          )
         ORDER BY qq.QUESTION_ORDER, qq.QUESTION_ID
         """,
         (attempt_id,),
@@ -1045,6 +1070,26 @@ def quiz_has_attempts(quiz_id):
     return bool(fetch_one(
         f"SELECT 1 AS OK FROM {object_name('QUIZ_ATTEMPT')} "
         "WHERE QUIZ_ID=? FETCH FIRST 1 ROW ONLY", (int(quiz_id),)
+    ))
+
+def quiz_has_pending_attempts(quiz_id):
+    """Do not append questions while any started attempt is unsubmitted/ungraded.
+
+    Existing QUIZ_QUESTION_GRADE rows are the immutable question-set snapshot
+    for previously graded attempts. There is no new Oracle table or column.
+    """
+    return bool(fetch_one(
+        f"""SELECT 1 AS BLOCKED FROM {object_name('QUIZ_ATTEMPT')} qa
+        WHERE qa.QUIZ_ID=?
+          AND (qa.SUBMITTED_AT IS NULL
+               OR NOT EXISTS (
+                   SELECT 1 FROM {object_name('QUIZ_GRADING')} qg
+                   JOIN {object_name('QUIZ_QUESTION_GRADE')} qqg
+                     ON qqg.GRADING_ID=qg.GRADING_ID
+                   WHERE qg.ATTEMPT_ID=qa.ATTEMPT_ID
+               ))
+        FETCH FIRST 1 ROW ONLY""",
+        (int(quiz_id),),
     ))
 
 

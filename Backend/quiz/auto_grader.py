@@ -289,6 +289,16 @@ def load_questions(attempt_id):
         JOIN {object_name("QUIZ_QUESTION")} qq ON qq.QUIZ_ID=qa.QUIZ_ID
         JOIN {object_name("QUESTION")} q ON q.QUESTION_ID=qq.QUESTION_ID
         WHERE qa.ATTEMPT_ID=?
+          AND (NOT EXISTS (
+                SELECT 1 FROM {object_name('QUIZ_GRADING')} qg
+                WHERE qg.ATTEMPT_ID=qa.ATTEMPT_ID
+              ) OR EXISTS (
+                SELECT 1 FROM {object_name('QUIZ_GRADING')} qg
+                JOIN {object_name('QUIZ_QUESTION_GRADE')} qqg
+                  ON qqg.GRADING_ID=qg.GRADING_ID
+                WHERE qg.ATTEMPT_ID=qa.ATTEMPT_ID
+                  AND qqg.QUESTION_ID=qq.QUESTION_ID
+              ))
         ORDER BY qq.QUESTION_ORDER, qq.QUESTION_ID
         """,
         (attempt_id,),
@@ -466,9 +476,9 @@ def synchronize_quiz_component_mark(component_id, enrollment_id, quiz_id, studen
           AND qa.SUBMITTED_AT IS NOT NULL
           AND qg.GRADING_STATUS IN ('AUTO_GRADED','REVIEWED','RELEASED')
           AND (qg.GRADING_STATUS <> 'AUTO_GRADED' OR NOT EXISTS (
-              SELECT 1 FROM {object_name('QUIZ_QUESTION')} qq
-              JOIN {object_name('QUESTION')} qn ON qn.QUESTION_ID=qq.QUESTION_ID
-              WHERE qq.QUIZ_ID=qa.QUIZ_ID AND qn.QUESTION_TYPE='LONG_TEXT'
+              SELECT 1 FROM {object_name('QUIZ_QUESTION_GRADE')} qqg
+              JOIN {object_name('QUESTION')} qn ON qn.QUESTION_ID=qqg.QUESTION_ID
+              WHERE qqg.GRADING_ID=qg.GRADING_ID AND qn.QUESTION_TYPE='LONG_TEXT'
           ))
         ORDER BY qg.FINAL_MARKS DESC, qa.ATTEMPT_NO DESC, qa.ATTEMPT_ID DESC
         FETCH FIRST 1 ROW ONLY

@@ -1,0 +1,16 @@
+{
+  "00_create_users_secure.sql": "dbdc5998b3619c6a0513bd146bb1ebb432a3626af3f41b8f6ffce285cd20aa43",
+  "01_INSTALL_FRESH.sql": "9c389e4096f70565fab90232a3c18a567614aa33a2d82b9770b8248f9b262d3f",
+  "02_VERIFY_FINAL_INSTALL.sql": "3bd890e32f605dca990b13d1842e00fb2c63837965438d4d2e8953d8dbab5119",
+  "Sample_Data/01_sample_catalog.sql": "d85be8b0113a646a8546c8f3e3e956daccd0ee2f24f8cb0969b9c83c3c016107",
+  "Sample_Data/03_sample_classes.sql": "854d2291bae5afc095a72c39e61fa3bbbb5c02c55ffe92a14a5346d3ac19fec5",
+  "Sample_Data/04_VERIFY_SAMPLE_DATA.sql": "d8b50cd4618c780bdcc34c5e72e599d2662b5ea292420d9796bbf66301e215ea",
+  "Schema_Fixed/01_create_tables.sql": "5f64d3bb17ab239b188a966142a5fb921ac668c56916a72132e215bee7277465",
+  "Schema_Fixed/02_functions.sql": "b1d590e8e80800d497ec4a29f6475df64467936a32021bc0f1aaff9f100d8db2",
+  "Schema_Fixed/03_procedures.sql": "2fb14fc93f83d3931a97289729f1540866be50db6e00db59912944a5dce3d0a4",
+  "Schema_Fixed/04_cursor_procedures.sql": "79d27c53d9a0bfb2dd71c5f24c7274b9d3d598b1778609adc83cff6e7ca85d4b",
+  "Schema_Fixed/05_triggers.sql": "c94667992deb944aaf84495cd436a7aa9ee068e192afc818a66f99e03f374909",
+  "Schema_Fixed/06_grants.sql": "1bc29e0bb43fda201714bd38b91ac3f05d87e0a57dbb3b1a8bb36be3eb81866c",
+  "Schema_Fixed/08_finalize_expired_attempts.sql": "70014fc48d5260ac34d20ca14416719dae8d66571891c1e885ea935813b601c2",
+  "Schema_Fixed/09_compliance_runtime_grants.sql": "43abfeb63b05a8bc8bf7a9748b71adfdc66090342e4c0581552cf3eda17f9451"
+}

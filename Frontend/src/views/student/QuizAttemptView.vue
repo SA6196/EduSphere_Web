@@ -17,6 +17,7 @@ const quizId=computed(()=>Number(route.params.quizId))
 const content=ref(null), attemptId=ref(null), submitted=ref(false), result=ref(null), review=ref(null), loading=ref(true), error=ref(null)
 const answers=reactive({}), transmitted=reactive({})
 const submitting=ref(false), confirmSubmit=ref(false), remaining=ref(0)
+const pendingAttempt=ref(null), pendingError=ref('')
 let timer=null, autosaveTimer=null
 let saveQueue=Promise.resolve()
 const lastSaved=reactive({})
@@ -66,7 +67,7 @@ function startTimer(isNew=false){
   tick();if(remaining.value>0)timer=setInterval(tick,1000)
 }
 async function initialize(){
-  loading.value=true;error.value=null
+  loading.value=true;error.value=null;pendingAttempt.value=null;pendingError.value='' 
   let startedNow=false
   try{
     try {
@@ -74,6 +75,14 @@ async function initialize(){
       attemptId.value=content.value.attempt_id
     } catch(e) {
       if (!isQuizAttemptRequired(e)) throw e
+      // A timed-out attempt is intentionally excluded from quiz content.
+      // Detect it before starting another attempt, and offer finalization
+      // of answers already persisted to Oracle (never reopen the questions).
+      const pending=await api.quizzes.pendingAttempt(quizId.value)
+      if (pending?.attempt_id) {
+        pendingAttempt.value=pending
+        return
+      }
       const started=await api.quizzes.startAttempt(quizId.value)
       attemptId.value=started.attempt_id
       startedNow=true
@@ -83,6 +92,21 @@ async function initialize(){
   } catch(e) {
     error.value=errorPresentation(e,'quiz')
   } finally { loading.value=false }
+}
+async function finalizePending(){
+  const id=pendingAttempt.value?.attempt_id
+  if(!id||submitting.value)return
+  pendingError.value='';submitting.value=true
+  try{
+    // Server enforces ownership and the expiry/close rules. This operation
+    // DOES NOT autosave drafts or disclose quiz content/answer keys.
+    await api.quizzes.submitAttempt(id)
+    sessionStorage.removeItem(`edusphere_quiz_draft_${id}`)
+    sessionStorage.removeItem(`edusphere_quiz_started_${id}`)
+    toast.success('Saved answers submitted. Your attempt is now finalized.')
+    await router.push('/student/quiz-attempts')
+  }catch(e){pendingError.value=e.message||'Unable to finalize this attempt.'}
+  finally{submitting.value=false}
 }
 async function transmitQuestion(q){
   const selected=answers[q.question_id]
@@ -144,6 +168,23 @@ onUnmounted(()=>{clearInterval(timer);clearTimeout(autosaveTimer)})
     <template #title>Quiz Attempt</template>
     <ErrorState v-if="error" :title="error.title" :message="error.message" :retryable="error.retryable" @retry="initialize" @back="router.back()" />
     <LoadingState v-else-if="loading" message="Preparing quiz attempt…" />
+    <SectionCard v-else-if="pendingAttempt" title="Unfinished quiz attempt" subtitle="Finalize an existing attempt without starting a new one.">
+      <div class="notice notice-warning" style="margin-bottom:16px">
+        Your previous attempt #{{ pendingAttempt.attempt_id }} is still unsubmitted.
+        <template v-if="pendingAttempt.submission_state !== 'READY'">
+          Its time limit or quiz window has ended, so answers cannot be viewed or changed.
+          Only answers already saved to EduSphere can be submitted.
+        </template>
+        <template v-else>
+          An unfinished attempt exists. You can finalize its saved answers, but this action is permanent.
+        </template>
+      </div>
+      <div v-if="pendingError" class="notice notice-error" style="margin-bottom:16px">{{ pendingError }}</div>
+      <button class="btn btn-primary" :disabled="submitting" @click="finalizePending">
+        {{ submitting ? 'Finalizing…' : 'Finalize saved attempt' }}
+      </button>
+      <button class="btn btn-soft" style="margin-left:10px" @click="router.back()">Go back</button>
+    </SectionCard>
     <template v-else-if="content">
       <div class="page-heading"><div><div class="eyebrow">Assessment attempt</div><h1>{{content.quiz?.quiz_title}}</h1><p>{{content.question_count}} question(s) · {{content.quiz?.duration_minutes||'—'}} minutes · Maximum {{content.quiz?.max_marks||'—'}} marks</p></div><button class="btn btn-soft" @click="router.back()">Back</button></div>
 
